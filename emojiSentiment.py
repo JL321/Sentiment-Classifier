@@ -88,7 +88,7 @@ new_input = new_input.split()
 
 ignore = True
 
-for i, word in enumerate(new_input): #If an unknown word exists, than set that to 0
+for i, word in enumerate(new_input): #If an unknown word exists, then set that to 0
     for unk in prep.word_index:
         if unk == word:
             #print(word)
