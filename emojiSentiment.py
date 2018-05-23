@@ -4,6 +4,7 @@ import keras
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.models import Model, load_model
+import re
 
 emojiSet = pd.read_csv("emojify_data.csv", header = None)
 
@@ -43,6 +44,7 @@ converted_text = pad_sequences(converted_text, maxlen = 10, padding = 'post')
 embedding_dict = {}
 
 ###Open glove embeddings 
+'''
 glove = open('glove.6B.100d.txt', encoding="utf8")
 
 for line in glove: #Create the dictionary for glove vectors
@@ -80,15 +82,15 @@ model.fit(converted_text, oneHotLabel, validation_split = .2, epochs = 50, verbo
 
 model.save('sentimentClassifier.h5')
 
-
+'''
 new_model = load_model('sentimentClassifier.h5')
 new_input = input('Enter a sentence:')
 new_input = new_input.lower()
-new_input = new_input.split()
+new_input = re.compile('\w+').findall(new_input)
 
 ignore = True
 
-for i, word in enumerate(new_input): #If an unknown word exists, then set that to 0
+for i, word in enumerate(new_input): #If an unknown word exists, than set that to 0
     for unk in prep.word_index:
         if unk == word:
             #print(word)
