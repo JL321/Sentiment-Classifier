@@ -7,7 +7,6 @@ from keras.models import Model, load_model
 import re
 
 emojiSet = pd.read_csv("emojify_data.csv", header = None)
-
 emojiSet = emojiSet.iloc[:, [0,1]]
 emojiSetA = np.array(emojiSet).tolist()
 
@@ -28,23 +27,42 @@ for i in labelSet: #Create labels
     new[i] = 1
     oneHotLabel = np.vstack((oneHotLabel,new))
 
+
 maxval = 0
 
-for string in featureSet:
-    string = string.split()
-    if len(string) > maxval:
-        maxval = len(string)
+for i,string in enumerate(featureSet):
+    string = string.lower()
+    sentence = string.split()
+    for a,v in enumerate(sentence):
+        if v == "i'm":
+            sentence.insert(a+1, "i")
+            sentence.insert(a+2, "am")
+            del sentence[a]
+        if v == "don't":
+            sentence.insert(a+1, "do")
+            sentence.insert(a+2, "not")
+            del sentence[a]
+    if len(sentence) > maxval:
+        maxval = len(sentence)
+    new_s = " ".join(sentence)
+    featureSet[i] = new_s
+
+print(featureSet)
+
+print(maxval)
 
 prep = Tokenizer() #Convert sentences into arrays of strings
 prep.fit_on_texts(featureSet)
 vocab_length = len(prep.word_index)+1
 converted_text = prep.texts_to_sequences(featureSet)
-converted_text = pad_sequences(converted_text, maxlen = 10, padding = 'post')
+
+converted_text = pad_sequences(converted_text, maxlen = maxval, padding = 'post')
 
 embedding_dict = {}
 
 ###Open glove embeddings 
 '''
+
 glove = open('glove.6B.100d.txt', encoding="utf8")
 
 for line in glove: #Create the dictionary for glove vectors
@@ -70,60 +88,68 @@ init = Input(shape=(maxval,))
 e = Embedding(vocab_length, 100, weights = [embedding_matrix], trainable = False)(init)
 x = LSTM(128, return_sequences = True)(e)
 x = Dropout(0.8)(x)
-x = LSTM(128, return_sequences = True)(x)
 x = BatchNormalization()(x)
+x = LSTM(128, return_sequences = True)(x)
 x = Dropout(0.8)(x)
+x = BatchNormalization()(x)
+x = LSTM(128, return_sequences = True)(x)
+x = Dropout(0.8)(x)
+x = BatchNormalization()(x)
 x = LSTM(128)(x)
 x = Dense(5, activation='softmax')(x)
 
 model = Model(inputs = init, outputs = x)
 model.compile(optimizer = 'Adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
-model.fit(converted_text, oneHotLabel, validation_split = .2, epochs = 50, verbose = 2)
+model.fit(converted_text, oneHotLabel, validation_split = .2, epochs = 100, verbose = 2)
 
 model.save('sentimentClassifier.h5')
 
 '''
+
 new_model = load_model('sentimentClassifier.h5')
-new_input = input('Enter a sentence:')
-new_input = new_input.lower()
-new_input = re.compile('\w+').findall(new_input)
 
-ignore = True
-
-for i, word in enumerate(new_input): #If an unknown word exists, than set that to 0
-    for unk in prep.word_index:
-        if unk == word:
-            #print(word)
-            ignore = False
-    if ignore:
-        new_input[i] = 0
-    else:
-        new_input[i] = prep.word_index[word]
+for i in range(5):
+    
+    new_input = input('Enter a sentence: ')
+    new_input = new_input.lower()
+    new_input = re.compile('\w+').findall(new_input)
+    
     ignore = True
-
-counter = len(new_input)
-
-while counter < maxval:
-    new_input.append(0) 
-    counter += 1
-
-new_input1 =  np.array([], dtype=np.int64).reshape(0,10)
-new_input = np.array(new_input)
-new_input1 = np.vstack((new_input1,new_input))
-new_input1 = np.vstack((new_input1,np.array([0,0,0,0,0,0,0,0,0,0]))) #Temporary fix - currently requires 2 array input for prediction to run
-
-store = new_model.predict(new_input1)
-
-store = np.argmax(store[0]) #Find Max Val
-
-if store == 0: #Print Emojis
-    print('\U0001F60D'+'\U0001F60A')
-elif store == 1:
-    print('\U000026BE')
-elif store == 2:
-    print('\U0001F600'+'\U0001F603')
-elif store == 3:
-    print('\U0001F620'+'\U0001F614')
-elif store == 4:
-    print('\U0001F357'+'\U0001F96A	')
+    
+    for i, word in enumerate(new_input): #If an unknown word exists, then set that to 0
+        for unk in prep.word_index:
+            if unk == word:
+                #print(word)
+                ignore = False
+        if ignore:
+            new_input[i] = 0
+        else:
+            new_input[i] = prep.word_index[word]
+        ignore = True
+    
+    counter = len(new_input)
+    
+    while counter < maxval:
+        new_input.append(0) 
+        counter += 1
+    
+    #new_input1 =  np.array([], dtype=np.int64).reshape(0,10)
+    new_input = np.array(new_input)
+    #new_input1 = np.vstack((new_input1,new_input))
+    #new_input1 = np.vstack((new_input1,np.array([0,0,0,0,0,0,0,0,0,0]))) #Temporary fix - currently requires 2 array input for prediction to run
+    new_input = np.reshape(new_input, [1,maxval])
+    store = new_model.predict(new_input)
+    
+    store = np.argmax(store[0]) #Find Max Val
+    
+    if store == 0: #Print Emojis
+        print('\U0001F60D'+'\U0001F60A')
+    elif store == 1:
+        print('\U000026BE')
+    elif store == 2:
+        print('\U0001F600'+'\U0001F603')
+    elif store == 3:
+        print('\U0001F614')
+    elif store == 4:
+        print('\U0001F357'+'\U0001F96A')
                 	
